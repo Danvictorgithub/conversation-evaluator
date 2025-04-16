@@ -14,12 +14,13 @@ class Evaluation(Base):
     __tablename__ = "evaluations"
     id: Mapped[int] = mapped_column(primary_key=True)
     model_name: Mapped[str] = mapped_column(String(100), default="")
+    sentence: Mapped[str] = mapped_column(default="")
     grammatical_correctness: Mapped[int] = mapped_column(default=0)
     readability: Mapped[int] = mapped_column(default=0)
     descriptiveness: Mapped[int] = mapped_column(default=0)
     coherence: Mapped[int] = mapped_column(default=0)
     conciseness: Mapped[int] = mapped_column(default=0)
-    explanation: Mapped[dict] = mapped_column(JSON)  # Use JSON type here
+    explanation: Mapped[str] = mapped_column(default="")
 
 
 # Create the database engine
