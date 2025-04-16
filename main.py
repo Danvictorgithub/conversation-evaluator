@@ -35,31 +35,37 @@ def get_output(response):
 def json_preprocess(response_text):
     response_text = get_output(response_text)
     # Extract the JSON part from the text
-    json_start = response_text.find("{")
-    json_end = response_text.rfind("}") + 1
+    json_start = response_text.find("[")
+    json_end = response_text.rfind("]") + 1
     json_data = response_text[json_start:json_end]
 
-    # Parse the JSON string into a Python dictionary
+    # Parse the JSON string into a Python list
     try:
         parsed_json = json.loads(json_data)
-        return parsed_json
+        if isinstance(parsed_json, list):
+            return parsed_json
+        else:
+            print("Error: Expected a JSON array but got something else.")
+            return None
     except json.JSONDecodeError as e:
         print("Error decoding JSON:", e)
         return None
 
 
-def save_to_db(json_data, model_name):
+def save_to_db(json_array, model_name):
     with Session() as session:
-        evaluation = Evaluation(
-            model_name=model_name,
-            grammatical_correctness=json_data["grammatical_correctness"],
-            readability=json_data["readability"],
-            descriptiveness=json_data["descriptiveness"],
-            coherence=json_data["coherence"],
-            conciseness=json_data["conciseness"],
-            explanation=json_data["explanation"],
-        )
-        session.add(evaluation)
+        for json_data in json_array:
+            evaluation = Evaluation(
+                model_name=model_name,
+                sentence=json_data["sentence"],
+                grammatical_correctness=json_data["grammatical_correctness"],
+                readability=json_data["readability"],
+                descriptiveness=json_data["descriptiveness"],
+                coherence=json_data["coherence"],
+                conciseness=json_data["conciseness"],
+                explanation=json_data["explanation"],
+            )
+            session.add(evaluation)
         session.commit()
 
 
