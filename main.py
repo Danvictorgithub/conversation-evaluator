@@ -214,7 +214,9 @@ def process_batch(model_type):
                     )
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(evaluate_conversation, conversation)
-                        response = future.result(timeout=30)  # Timeout after 30 seconds
+                        response = future.result(
+                            timeout=120
+                        )  # Timeout after 30 seconds
                     print("New Response: ", get_output(response))
                 except concurrent.futures.TimeoutError:
                     print(
