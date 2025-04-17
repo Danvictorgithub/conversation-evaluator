@@ -261,7 +261,7 @@ def main():
         "out-slide-w128-54M-r9",
     ]
 
-    batch_size = 1  # Number of processes to run in parallel
+    batch_size = 3  # Number of processes to run in parallel
     while True:
         for i in range(0, len(model_types), batch_size):
             batch = model_types[i : i + batch_size]
