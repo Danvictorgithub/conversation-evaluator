@@ -7,6 +7,9 @@ from db import Evaluation, Session
 from provider import generate_conversation
 import concurrent.futures
 import time
+import json
+import re
+from demjson3 import decode as demjson_decode, JSONDecodeError as DemJSONDecodeError
 
 load_dotenv()
 
@@ -41,7 +44,7 @@ def json_preprocess(response_text):
     json_end = response_text.rfind("]") + 1
     json_data = response_text[json_start:json_end]
 
-    # Parse the JSON string into a Python list
+    # Attempt to parse the JSON string into a Python list
     try:
         parsed_json = json.loads(json_data)
         if isinstance(parsed_json, list):
@@ -50,8 +53,43 @@ def json_preprocess(response_text):
             print("Error: Expected a JSON array but got something else.")
             return None
     except json.JSONDecodeError as e:
-        print("Error decoding JSON:", e)
-        return None
+        print("Error decoding JSON with standard parser:", e)
+
+    # Attempt to auto-fix and parse the JSON using demjson3
+    try:
+        print("Attempting to auto-fix JSON...")
+        fixed_json = demjson_decode(json_data)
+        if isinstance(fixed_json, list):
+            return fixed_json
+        else:
+            print("Error: Expected a JSON array but got something else after auto-fix.")
+            return None
+    except DemJSONDecodeError as e:
+        print("Error auto-fixing JSON:", e)
+
+    # As a last resort, try to clean up common issues manually
+    try:
+        print("Attempting manual cleanup...")
+        json_data = re.sub(
+            r",\s*]", "]", json_data
+        )  # Remove trailing commas before closing brackets
+        json_data = re.sub(
+            r",\s*}", "}", json_data
+        )  # Remove trailing commas before closing braces
+        parsed_json = json.loads(json_data)
+        if isinstance(parsed_json, list):
+            return parsed_json
+        else:
+            print(
+                "Error: Expected a JSON array but got something else after manual cleanup."
+            )
+            return None
+    except json.JSONDecodeError as e:
+        print("Error decoding JSON after manual cleanup:", e)
+
+    # If all attempts fail, return None
+    print("Failed to process JSON data.")
+    return None
 
 
 def save_to_db(json_array, model_name, seed):
