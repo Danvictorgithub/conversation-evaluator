@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import json
 import os
 from db import Evaluation, Session
+from provider import generate_conversation_full
 
 load_dotenv()
 
@@ -14,8 +15,8 @@ def evaluate_conversation(text):
     response = requests.post(
         api,
         json={
-            "model_name": "gpt_4o_mini",
-            "provider": "openrouter",
+            "model_name": os.getenv("MODEL_NAME"),
+            "provider": os.getenv("PROVIDER"),
             "plaintext_input": text,
             "ui_prompt_method": os.getenv("PROMPT_ID"),
         },
@@ -70,6 +71,7 @@ def save_to_db(json_array, model_name):
 
 
 def main():
+    print("result:", generate_conversation_full())
     # response = evaluate_conversation(
     #     "Person A: Hi.  Person B: Hello.  Person A: How are you.  Person B: Yes.  Person A: Ok.  Person B: Bye."
     # )
