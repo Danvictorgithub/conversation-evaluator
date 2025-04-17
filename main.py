@@ -54,7 +54,7 @@ def json_preprocess(response_text):
         return None
 
 
-def save_to_db(json_array, model_name):
+def save_to_db(json_array, model_name, seed):
     with Session() as session:
         for json_data in json_array:
             evaluation = Evaluation(
@@ -66,53 +66,45 @@ def save_to_db(json_array, model_name):
                 coherence=json_data["coherence"],
                 conciseness=json_data["conciseness"],
                 explanation=json_data["explanation"],
+                seed=seed,
             )
             session.add(evaluation)
         session.commit()
 
 
 def process_batch(model_type):
-    max_retries = 3
-    conversation = None
-
-    # Retry mechanism for generate_conversation
-    for attempt in range(max_retries):
-        try:
-            conversation = generate_conversation(model_type)
-            print("Conversation Generated: ", conversation)
-            break  # Exit the loop if successful
-        except Exception as e:
-            if "CUDA" in str(e):
-                print(
-                    f"CUDA error detected during conversation generation (Attempt {attempt + 1}/{max_retries}): {e}"
-                )
-                time.sleep(
-                    2
-                )  # Add a delay before retrying to allow resources to recover
-            else:
-                print(
-                    f"Error generating conversation (Attempt {attempt + 1}/{max_retries}): {e}"
-                )
-            if attempt == max_retries - 1:
-                print("Max retries reached for conversation generation. Aborting.")
-                return
-
-    if conversation is None:  # Ensure conversation is valid before proceeding
-        print("No valid conversation generated. Aborting.")
+    try:
+        # Generate conversation
+        result = generate_conversation(model_type)
+        if result is None:
+            print("Failed to generate conversation. Aborting.")
+            return
+        conversation, seed = result  # Unpack only if result is not None
+        print(f"Conversation Generated (Seed: {seed}): {conversation}")
+    except Exception as e:
+        print("Error generating conversation:", e)
         return
 
-    response = None  # Initialize response to avoid being unbound
+    max_retries = 3
+    backoff_time = 2  # Initial backoff time in seconds
+    response = None
+
+    # Retry mechanism for evaluating conversation
     for attempt in range(max_retries):
         try:
+            print(f"Evaluating conversation (Attempt {attempt + 1}/{max_retries})...")
             response = evaluate_conversation(conversation)
             print("Response: ", get_output(response))
             break  # Exit the loop if successful
         except Exception as e:
             print(
-                f"Error evaluating conversation (Attempt {attempt + 1}/{max_retries}):",
-                e,
+                f"Error evaluating conversation (Attempt {attempt + 1}/{max_retries}): {e}"
             )
-            if attempt == max_retries - 1:
+            if attempt < max_retries - 1:
+                print(f"Retrying after {backoff_time} seconds...")
+                time.sleep(backoff_time)  # Wait before retrying
+                backoff_time *= 2  # Exponentially increase the backoff time
+            else:
                 print("Max retries reached. Aborting.")
                 return
 
@@ -120,29 +112,30 @@ def process_batch(model_type):
         print("No valid response generated. Aborting.")
         return
 
+    # Retry mechanism for JSON preprocessing
     for attempt in range(max_retries):
         try:
             json_data = json_preprocess(response)
             print("JSON Data: ", json_data)
             if json_data:
-                save_to_db(json_data, model_type)
+                save_to_db(json_data, model_type, seed)
                 print("Data saved to database successfully.")
                 return
             else:
                 print("Failed to process JSON data.")
         except Exception as e:
             print(
-                f"Error in JSON preprocessing (Attempt {attempt + 1}/{max_retries}):", e
+                f"Error in JSON preprocessing (Attempt {attempt + 1}/{max_retries}): {e}"
             )
 
         # Generate a new response if JSON preprocessing fails
         try:
+            print(f"Generating a new response (Attempt {attempt + 1}/{max_retries})...")
             response = evaluate_conversation(conversation)
-            print("New Response: ", response)
+            print("New Response: ", get_output(response))
         except Exception as e:
             print(
-                f"Error generating new response (Attempt {attempt + 1}/{max_retries}):",
-                e,
+                f"Error generating new response (Attempt {attempt + 1}/{max_retries}): {e}"
             )
             if attempt == max_retries - 1:
                 print("Max retries reached for JSON preprocessing. Aborting.")
@@ -171,7 +164,7 @@ def main():
         "out-slide-w128-54M-r9",
     ]
 
-    batch_size = 3  # Number of processes to run in parallel
+    batch_size = 1  # Number of processes to run in parallel
     while True:
         for i in range(0, len(model_types), batch_size):
             batch = model_types[i : i + batch_size]

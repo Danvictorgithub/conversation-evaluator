@@ -21,6 +21,7 @@ class Evaluation(Base):
     coherence: Mapped[int] = mapped_column(default=0)
     conciseness: Mapped[int] = mapped_column(default=0)
     explanation: Mapped[str] = mapped_column(default="")
+    seed: Mapped[int] = mapped_column(default=0)
 
 
 # Create the database engine
