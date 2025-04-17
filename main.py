@@ -72,14 +72,35 @@ def save_to_db(json_array, model_name):
 
 
 def process_batch(model_type):
-    try:
-        conversation = generate_conversation(model_type)
-        print("Conversation Generated: ", conversation)
-    except Exception as e:
-        print("Error generating conversation:", e)
+    max_retries = 3
+    conversation = None
+
+    # Retry mechanism for generate_conversation
+    for attempt in range(max_retries):
+        try:
+            conversation = generate_conversation(model_type)
+            print("Conversation Generated: ", conversation)
+            break  # Exit the loop if successful
+        except Exception as e:
+            if "CUDA" in str(e):
+                print(
+                    f"CUDA error detected during conversation generation (Attempt {attempt + 1}/{max_retries}): {e}"
+                )
+                time.sleep(
+                    2
+                )  # Add a delay before retrying to allow resources to recover
+            else:
+                print(
+                    f"Error generating conversation (Attempt {attempt + 1}/{max_retries}): {e}"
+                )
+            if attempt == max_retries - 1:
+                print("Max retries reached for conversation generation. Aborting.")
+                return
+
+    if conversation is None:  # Ensure conversation is valid before proceeding
+        print("No valid conversation generated. Aborting.")
         return
 
-    max_retries = 3
     response = None  # Initialize response to avoid being unbound
     for attempt in range(max_retries):
         try:
@@ -138,24 +159,25 @@ def process_model_type_in_loop(model_type):
 def main():
     model_types = [
         "out-full-wfull-54M-r5",  # Full Attention
-        "out-local-w64-54M-r9",  # Local Attention
-        "out-local-w2-54M-r15",
-        "out-local-w4-54M-r13",
+        "out-local-w2-54M-r15",  # Local Attention
         "out-local-w16-54M-r11",
         "out-local-w32-54M-r10",
         "out-local-w64-54M-r9",
         "out-local-w128-54M-r8",
-        "out-slide-w64-54M-r7",  # Sliding Window Attention
-        "out-slide-w2-54M-r10",
+        "out-slide-w2-54M-r10",  # Sliding Window Attention
         "out-slide-w16-54M-r5",
         "out-slide-w32-54M-r6",
         "out-slide-w64-54M-r7",
         "out-slide-w128-54M-r9",
     ]
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # Run each model type in parallel in an infinite loop
-        executor.map(process_model_type_in_loop, model_types)
+    batch_size = 3  # Number of processes to run in parallel
+    while True:
+        for i in range(0, len(model_types), batch_size):
+            batch = model_types[i : i + batch_size]
+            print(f"Processing batch: {batch}")
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.map(process_model_type_in_loop, batch)
 
 
 if __name__ == "__main__":
