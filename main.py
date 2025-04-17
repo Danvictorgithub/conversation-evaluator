@@ -4,14 +4,15 @@ from dotenv import load_dotenv
 import json
 import os
 from db import Evaluation, Session
-from provider import generate_conversation_full
+from provider import generate_conversation
+import concurrent.futures
+import time
 
 load_dotenv()
 
 
 def evaluate_conversation(text):
     api = f"{os.getenv('KILN_PORT')}/api/projects/{os.getenv('PROJECT_ID')}/tasks/{os.getenv('TASK_ID')}/run"
-    print("API URL:", api)
     response = requests.post(
         api,
         json={
@@ -70,19 +71,91 @@ def save_to_db(json_array, model_name):
         session.commit()
 
 
+def process_batch(model_type):
+    try:
+        conversation = generate_conversation(model_type)
+        print("Conversation Generated: ", conversation)
+    except Exception as e:
+        print("Error generating conversation:", e)
+        return
+
+    max_retries = 3
+    response = None  # Initialize response to avoid being unbound
+    for attempt in range(max_retries):
+        try:
+            response = evaluate_conversation(conversation)
+            print("Response: ", get_output(response))
+            break  # Exit the loop if successful
+        except Exception as e:
+            print(
+                f"Error evaluating conversation (Attempt {attempt + 1}/{max_retries}):",
+                e,
+            )
+            if attempt == max_retries - 1:
+                print("Max retries reached. Aborting.")
+                return
+
+    if response is None:  # Ensure response is valid before proceeding
+        print("No valid response generated. Aborting.")
+        return
+
+    for attempt in range(max_retries):
+        try:
+            json_data = json_preprocess(response)
+            print("JSON Data: ", json_data)
+            if json_data:
+                save_to_db(json_data, model_type)
+                print("Data saved to database successfully.")
+                return
+            else:
+                print("Failed to process JSON data.")
+        except Exception as e:
+            print(
+                f"Error in JSON preprocessing (Attempt {attempt + 1}/{max_retries}):", e
+            )
+
+        # Generate a new response if JSON preprocessing fails
+        try:
+            response = evaluate_conversation(conversation)
+            print("New Response: ", response)
+        except Exception as e:
+            print(
+                f"Error generating new response (Attempt {attempt + 1}/{max_retries}):",
+                e,
+            )
+            if attempt == max_retries - 1:
+                print("Max retries reached for JSON preprocessing. Aborting.")
+                return
+
+
+def process_model_type_in_loop(model_type):
+    while True:
+        print(f"Processing batch for model type: {model_type}")
+        process_batch(model_type)
+        time.sleep(1)  # Optional: Add a delay to avoid overwhelming the system
+
+
 def main():
-    print("result:", generate_conversation_full())
-    # response = evaluate_conversation(
-    #     "Person A: Hi.  Person B: Hello.  Person A: How are you.  Person B: Yes.  Person A: Ok.  Person B: Bye."
-    # )
-    # sample_model = "sliding-sparse"
-    # json_data = json_preprocess(response)
-    # if json_data:
-    #     save_to_db(json_data, sample_model)
-    #     print("Data saved to database successfully.")
-    # else:
-    #     print("Failed to process JSON data.")
-    # print(json_preprocess(response))
+    model_types = [
+        "out-full-wfull-54M-r5",  # Full Attention
+        "out-local-w64-54M-r9",  # Local Attention
+        "out-local-w2-54M-r15",
+        "out-local-w4-54M-r13",
+        "out-local-w16-54M-r11",
+        "out-local-w32-54M-r10",
+        "out-local-w64-54M-r9",
+        "out-local-w128-54M-r8",
+        "out-slide-w64-54M-r7",  # Sliding Window Attention
+        "out-slide-w2-54M-r10",
+        "out-slide-w16-54M-r5",
+        "out-slide-w32-54M-r6",
+        "out-slide-w64-54M-r7",
+        "out-slide-w128-54M-r9",
+    ]
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Run each model type in parallel in an infinite loop
+        executor.map(process_model_type_in_loop, model_types)
 
 
 if __name__ == "__main__":
