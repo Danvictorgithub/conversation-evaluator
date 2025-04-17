@@ -93,20 +93,25 @@ def process_batch(model_type):
     for attempt in range(max_retries):
         try:
             print(f"Evaluating conversation (Attempt {attempt + 1}/{max_retries})...")
-            response = evaluate_conversation(conversation)
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(evaluate_conversation, conversation)
+                response = future.result(timeout=30)  # Timeout after 30 seconds
             print("Response: ", get_output(response))
             break  # Exit the loop if successful
+        except concurrent.futures.TimeoutError:
+            print(f"Timeout during evaluation (Attempt {attempt + 1}/{max_retries}).")
         except Exception as e:
             print(
                 f"Error evaluating conversation (Attempt {attempt + 1}/{max_retries}): {e}"
             )
-            if attempt < max_retries - 1:
-                print(f"Retrying after {backoff_time} seconds...")
-                time.sleep(backoff_time)  # Wait before retrying
-                backoff_time *= 2  # Exponentially increase the backoff time
-            else:
-                print("Max retries reached. Aborting.")
-                return
+
+        if attempt < max_retries - 1:
+            print(f"Retrying after {backoff_time} seconds...")
+            time.sleep(backoff_time)  # Wait before retrying
+            backoff_time *= 2  # Exponentially increase the backoff time
+        else:
+            print("Max retries reached. Aborting.")
+            return
 
     if response is None:  # Ensure response is valid before proceeding
         print("No valid response generated. Aborting.")
@@ -131,8 +136,14 @@ def process_batch(model_type):
         # Generate a new response if JSON preprocessing fails
         try:
             print(f"Generating a new response (Attempt {attempt + 1}/{max_retries})...")
-            response = evaluate_conversation(conversation)
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(evaluate_conversation, conversation)
+                response = future.result(timeout=30)  # Timeout after 30 seconds
             print("New Response: ", get_output(response))
+        except concurrent.futures.TimeoutError:
+            print(
+                f"Timeout during new response generation (Attempt {attempt + 1}/{max_retries})."
+            )
         except Exception as e:
             print(
                 f"Error generating new response (Attempt {attempt + 1}/{max_retries}): {e}"
