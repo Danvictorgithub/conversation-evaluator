@@ -16,10 +16,10 @@ def evaluate_conversation(text):
     response = requests.post(
         api,
         json={
-            "model_name": os.getenv("MODEL_NAME"),
-            "provider": os.getenv("PROVIDER"),
+            "model_name": os.getenv("MODEL_NAME", "gpt-4o"),
+            "provider": os.getenv("PROVIDER", "openrouter"),
             "plaintext_input": text,
-            "ui_prompt_method": os.getenv("PROMPT_ID"),
+            "ui_prompt_method": os.getenv("PROMPT_ID", "").strip(),
         },
     )
     if not response.ok:
