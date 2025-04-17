@@ -6,10 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def generate_conversation_full():
+def generate_conversation(model_type):
     seed = random.randint(0, 1000000)
     llm_folder = os.getenv("LLM_FOLDER", "")
-    command = f"python sample_gen.py --out_dir=out-full-wfull-54M-r5 --seed={seed}"
+    command = f"python sample_gen.py --out_dir={model_type} --seed={seed}"
 
     try:
         result = subprocess.run(
