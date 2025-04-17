@@ -20,7 +20,7 @@ def generate_conversation(model_type):
             capture_output=True,
             cwd=llm_folder,
         )
-        return result.stdout
+        return result.stdout, seed
     except subprocess.CalledProcessError as e:
         print(f"Error occurred: {e.stderr}")
         return None
