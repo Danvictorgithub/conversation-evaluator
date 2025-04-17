@@ -191,11 +191,10 @@ def process_batch(model_type):
                 return
 
 
-def process_model_type_in_loop(model_type):
-    while True:
-        print(f"Processing batch for model type: {model_type}")
-        process_batch(model_type)
-        time.sleep(1)  # Optional: Add a delay to avoid overwhelming the system
+def process_model_type_once(model_type):
+    print(f"Processing batch for model type: {model_type}")
+    process_batch(model_type)
+    time.sleep(1)  # Optional: Add a delay to avoid overwhelming the system
 
 
 def main():
@@ -219,7 +218,7 @@ def main():
             batch = model_types[i : i + batch_size]
             print(f"Processing batch: {batch}")
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                executor.map(process_model_type_in_loop, batch)
+                executor.map(process_model_type_once, batch)
 
 
 if __name__ == "__main__":
