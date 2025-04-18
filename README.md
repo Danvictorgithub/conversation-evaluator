@@ -37,7 +37,7 @@ This repository is used for reference in thesis paper "Enhancing Language Model 
    python gen_config.py
    ```
 
-   This will create a `config.txt` file with the necessary IDs. Copy these to your .env using .env.example as reference
+   This will create a `config.txt` file with the necessary IDs.
 
 5. **Run the evaluator:**
    ```bash
