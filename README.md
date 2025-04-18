@@ -16,7 +16,7 @@ This repository is used for reference in thesis paper "Enhancing Language Model 
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/yourusername/conversation-evaluator.git
+   git clone git@github.com:Danvictorgithub/conversation-evaluator.git
    cd conversation-evaluator
    ```
 
@@ -37,7 +37,7 @@ This repository is used for reference in thesis paper "Enhancing Language Model 
    python gen_config.py
    ```
 
-   This will create a `config.txt` file with the necessary IDs.
+   This will create a `config.txt` file with the necessary IDs. Copy these to your .env using .env.example as reference
 
 5. **Run the evaluator:**
    ```bash
