@@ -51,7 +51,7 @@ def generate_config():
     with open("config.txt", "w") as f:
         f.write(f"PROJECT_ID={PROJECT_ID}\n")
         f.write(f"TASK_ID={TASK_ID}\n")
-        f.write(f"PROMPT_ID={PROMPT_ID}\n")
+        f.write(f"PROMPT_ID=id::{PROMPT_ID}\n")
 
     print("Config generated successfully.")
 
